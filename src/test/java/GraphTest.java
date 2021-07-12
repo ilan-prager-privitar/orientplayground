@@ -39,7 +39,6 @@ public class GraphTest {
     public void testGroupDirectFolderAccess() {
         assertAccess("Security", "Sally Security", "R", true);
         assertAccess("Security", "Dave Defender", "R", true);
-        assertAccess("Security", "Ronny Researcher", "R", false);
     }
 
     @Test
@@ -72,7 +71,14 @@ public class GraphTest {
 
     @Test
     public void testStopAscentInFolderContainmentWhenPermissionsAssigned() {
+        // TODO failing since short circuit is not implemented
         assertAccess("Finance", "Ivan Investigator", "R", false);
         assertAccess("Finance", "Sally Security", "R", false);
+    }
+
+    @Test
+    public void testStopDescentInFolderContainmentWhenPermissionsAssigned() {
+        // TODO failing since short circuit is not implemented
+        assertAccess("Security", "Ronny Researcher", "R", false);
     }
 }
