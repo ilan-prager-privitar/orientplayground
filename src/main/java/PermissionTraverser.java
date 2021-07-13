@@ -28,7 +28,7 @@ public class PermissionTraverser {
     private GraphTraversal<Vertex, Vertex> resourcePermissionedToUserTraversal(Vertex user, String permission) {
         List<Traversal<?, ?>> traversals = new ArrayList<>();
         if (permission.equals("R")) {
-            // only consider public access if the request is fo read
+            // only consider public access if the request is for read
             traversals.add(isPublic());
         }
         traversals.add(isOwnedByUser(user));

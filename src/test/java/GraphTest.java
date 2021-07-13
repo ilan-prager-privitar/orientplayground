@@ -1,4 +1,7 @@
+import java.util.List;
+import java.util.stream.Stream;
 import org.apache.tinkerpop.gremlin.orientdb.OrientGraph;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -14,6 +17,7 @@ public class GraphTest {
     public static void setup() {
         // in memory
         graph = OrientGraph.open();
+        graph.configuration().setProperty("orient-max-poolsize", 500);
         new GraphScenario(graph).createGraph();
     }
 
@@ -30,7 +34,7 @@ public class GraphTest {
         }
 
         private Vertex createGroup(String name) {
-            return graph.addVertex("User").property("name", name).element();
+            return graph.addVertex("Group").property("name", name).element();
         }
 
         private Vertex createFolder(String name) {
@@ -109,7 +113,20 @@ public class GraphTest {
 
     private boolean hasAccess(Graph g, String resourceId, String userId, String permission) {
         System.out.println(String.format("Looking for %s with access %s by %s", resourceId, permission, userId));
-        return new PermissionTraverser().hasAccess(g, resourceId, userId, permission).hasNext();
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, resourceId, userId, permission)) {
+            return t.hasNext();
+        } catch (Exception x) {
+            throw new RuntimeException(x);
+        }
+    }
+
+    private Object getAllAccessible(Graph g, String userId, String permission) {
+        System.out.println(String.format("Looking for all accessible with access %s by %s", permission, userId));
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V(), userId, permission).values("name").fold()) {
+            return t.next();
+        } catch (Exception x) {
+            throw new RuntimeException(x);
+        }
     }
 
     private void assertAccess(String resourceId, String userId, String permission, boolean expected) {
@@ -170,6 +187,7 @@ public class GraphTest {
     @Test
     public void testDirectFolderContainment() {
         assertAccess("Bond", "Ronny Researcher", "R", true);
+        assertAccess("Bond", "Ronny Researcher", "W", false);
     }
 
     @Test
@@ -188,5 +206,14 @@ public class GraphTest {
     public void testStopDescentInFolderContainmentWhenPermissionsAssigned() {
         assertAccess("Security", "Ronny Researcher", "R", false);
         assertAccess("Intruder", "Ronny Researcher", "R", false);
+    }
+
+    @Test
+    public void printAllAccessibleToAllUsers() {
+        graph.traversal().V().hasLabel("User").forEachRemaining((user) -> {
+            String userId = user.value("name");
+            System.out.println(getAllAccessible(graph, userId, "R"));
+            System.out.println(getAllAccessible(graph, userId, "W"));
+        });
     }
 }
