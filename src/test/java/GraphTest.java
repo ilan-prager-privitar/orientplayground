@@ -121,12 +121,15 @@ public class GraphTest {
     }
 
     private Object getAllAccessible(Graph g, String userId, String permission) {
-        System.out.println(String.format("Looking for all accessible with access %s by %s", permission, userId));
         try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V(), userId, permission).values("name").fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);
         }
+    }
+
+    private void printAllAccessibleToUser(Graph g, String userId, String permission) {
+        System.out.format("%-20s %-1s %s\n", userId, permission, getAllAccessible(g, userId, permission));
     }
 
     private void assertAccess(String resourceId, String userId, String permission, boolean expected) {
@@ -212,8 +215,8 @@ public class GraphTest {
     public void printAllAccessibleToAllUsers() {
         graph.traversal().V().hasLabel("User").forEachRemaining((user) -> {
             String userId = user.value("name");
-            System.out.println(getAllAccessible(graph, userId, "R"));
-            System.out.println(getAllAccessible(graph, userId, "W"));
+            printAllAccessibleToUser(graph, userId, "R");
+            printAllAccessibleToUser(graph, userId, "W");
         });
     }
 }
