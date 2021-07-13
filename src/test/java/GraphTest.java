@@ -156,6 +156,13 @@ public class GraphTest {
     }
 
     @Test
+    public void testDirectAccessDoesntLeakToContainerAccess() {
+        assertAccess("Classified", "X", "W", false);
+        assertAccess("Classified", "X", "R", false);
+    }
+
+
+    @Test
     public void testIsolated() {
         // assertAccess("Hack", "X", "R", true); // true because it's in a folder he can access
     }
