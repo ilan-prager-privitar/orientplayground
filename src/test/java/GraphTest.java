@@ -76,24 +76,36 @@ public class GraphTest {
             Vertex dave = createUser("Dave Defender");
             Vertex ronny = createUser("Ronny Researcher");
             Vertex owen = createUser("Owen Owner");
+            Vertex derek = createUser("Derek Dev");
+            Vertex mandy = createUser("Mandy Manager");
+            Vertex cally = createUser("Cally Coder");
 
             Vertex securityGroup = createGroup("Security");
             Vertex forensics = createGroup("Forensics");
+            Vertex allDevs = createGroup("All devs");
 
             Vertex corporate = createFolder("Corporate");
             Vertex finance = createFolder("Finance");
             Vertex security = createFolder("Security");
             Vertex classified = createFolder("Classified");
+            Vertex dev = createFolder("Dev");
+            Vertex code = createFolder("Code");
+            Vertex secrets = createFolder("Secrets");
 
             Vertex bond = createTerm("Bond");
             Vertex intruder = createTerm("Intruder");
             Vertex hack = createTerm("Hack");
+            Vertex encrypt = createTerm("Encrypt");
+            Vertex key = createTerm("Key");
 
             addToSuperGroup(forensics, securityGroup);
 
             addToGroup(sally, securityGroup);
             addToGroup(dave, securityGroup);
             addToGroup(ivan, forensics);
+            addToGroup(derek, allDevs);
+            addToGroup(mandy, allDevs);
+            addToGroup(cally, allDevs);
 
             addToFolder(hack, classified);
             addToFolder(classified, security);
@@ -101,14 +113,21 @@ public class GraphTest {
             addToFolder(intruder, security);
             addToFolder(finance, corporate);
             addToFolder(bond, finance);
+            addToFolder(dev, corporate);
+            addToFolder(code, dev);
+            addToFolder(secrets, dev);
+            addToFolder(encrypt, secrets);
+            addToFolder(key, secrets);
 
             makePublic(corporate);
             addOwner(security, owen);
             addHasPermission(ronny, finance, "R");
             addHasPermission(securityGroup, security, "R");
             addHasPermission(forensics, classified, "R");
-            addHasPermission(forensics, classified, ""); // TODO solve problem when W
             addHasPermission(x, hack, "W");
+            addHasPermission(allDevs, dev, "R");
+            addHasPermission(derek, secrets, "W");
+            addHasPermission(mandy, encrypt, "W");
 
 //            Vertex everyone = createGroup("Everyone");
 //            addHasPermission(everyone, security, "R");
@@ -192,7 +211,7 @@ public class GraphTest {
 
     @Test
     public void testIsolated() {
-        // assertAccess("Hack", "X", "R", true); // true because it's in a folder he can access
+        assertAccess("Hack", "Ivan Investigator", "W", false);
     }
 
     @Test

@@ -82,8 +82,8 @@ public class PermissionTraverser {
     }
 
     private GraphTraversal<Vertex, Vertex> containerHierarchyHasPermission(TraversalProvider permissionTraversalProvider, String permission, String... edgeLabels) {
-        return __.out(edgeLabels).until(__.inE("HAS_PERMISSION").has("permission", permission))
-                .repeat(
+        return __.until(__.inE("HAS_PERMISSION").has("permission", permission))
+                .repeat((Traversal)
                         __.out(edgeLabels)
                 ).where(permissionTraversalProvider.getTraversal());
     }
