@@ -107,7 +107,15 @@ public class GraphTest {
             addHasPermission(ronny, finance, "R");
             addHasPermission(securityGroup, security, "R");
             addHasPermission(forensics, classified, "R");
+            addHasPermission(forensics, classified, ""); // TODO solve problem when W
             addHasPermission(x, hack, "W");
+
+//            Vertex everyone = createGroup("Everyone");
+//            addHasPermission(everyone, security, "R");
+//            for (int i = 0; i < 400000; i++) {
+//                Vertex user = createUser("user " + i);
+//                addToGroup(user, everyone);
+//            }
         }
     }
 
@@ -170,7 +178,7 @@ public class GraphTest {
         assertAccess("Hack", "Ivan Investigator", "W", false);
 
         assertAccess("Hack", "X", "W", true);
-        assertAccess("Hack", "X", "R", false); // really should be true TODO implement
+        assertAccess("Hack", "X", "R", true);
 
         assertAccess("Hack", "Ivan Investigator", "R", true);
     }

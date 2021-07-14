@@ -21,8 +21,18 @@ public class PermissionTraverser {
         return __.out("OWNED_BY").is(user);
     }
 
+    private GraphTraversal getMappedPermission(String permission) {
+        // actual implementation should be more elegant
+        if (permission.equals("R")) {
+            return __.has("permission", "R").or().has("permission", "W").or().has("permission", "A");
+        } else if (permission.equals("W")) {
+            return __.has("permission", "W").or().has("permission", "A");
+        }
+        return __.has("permission", permission);
+    }
+
     private GraphTraversal<Vertex, Vertex> permissionedPrincipalsTraversal(String permission) {
-        return __.inE("HAS_PERMISSION").has("permission", permission).outV();
+        return __.inE("HAS_PERMISSION").where(getMappedPermission(permission)).outV();
     }
 
     private GraphTraversal<Vertex, Vertex> resourcePermissionedToUserTraversal(Vertex user, String permission) {
@@ -45,7 +55,9 @@ public class PermissionTraverser {
 
     private GraphTraversal<Vertex, Vertex> isPermissionedToPrincipalGroupsHierarchy(Vertex user, String permission) {
         // resource is owned by the given user
+        // TODO add until to optimize
         return permissionedPrincipalsTraversal(permission).repeat(
+                // dive down to subgroups, members to see if user is included there
                 __.in("MEMBER_OF", "HAS_SUPERGROUP")
         ).emit().is(user);
     }
