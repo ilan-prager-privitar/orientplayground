@@ -58,19 +58,19 @@ public abstract class GraphScenario {
 
     public abstract void createGraph();
 
-    private Map<String, List<Integer>> stats = new HashMap<>();
+    private Map<String, List<Integer>> groupStats = new HashMap<>();
 
-    public Map<String, List<Integer>> getStats() {
-        return stats;
+    public Map<String, List<Integer>> getGroupStats() {
+        return groupStats;
     }
 
     protected void addUsersToGroup(List<Vertex> allUsers, Vertex group, int start, int groupSize) {
         String name = group.value("name");
         String type = name.substring(0, name.indexOf("-"));
-        if (!stats.containsKey(type)) {
-            stats.put(type, new ArrayList<>());
+        if (!groupStats.containsKey(type)) {
+            groupStats.put(type, new ArrayList<>());
         }
-        stats.get(type).add(groupSize);
+        groupStats.get(type).add(groupSize);
         int end = start + groupSize;
         for (int i = start; i < end; i++) {
             addToGroup(allUsers.get(i), group);
@@ -97,6 +97,26 @@ public abstract class GraphScenario {
         });
     }
 
+    protected void addCategoriesAndTerms(Vertex parentCategory, List<CategoryLevel> categoryLevels, int levelIndex) {
+        if (levelIndex > categoryLevels.size() - 1) {
+            return;
+        }
+        String parentName = parentCategory.value("name");
+        CategoryLevel level = categoryLevels.get(levelIndex);
+        IntStream.range(0, level.numChildCategories).forEach(i -> {
+            String name = parentName + "_" + i;
+            Vertex category = createFolder(name);
+            // System.out.println("CATG: " + name);
+            addToFolder(category, parentCategory);
+            IntStream.range(0, level.numTermsPerLevel).forEach(j -> {
+                String termName = name + "_" + j;
+                Vertex term = createTerm(termName);
+                addToFolder(term, category);
+            });
+            addCategoriesAndTerms(category, categoryLevels, levelIndex + 1);
+        });
+    }
+
     static class GroupLevel {
 
         String prefix;
@@ -105,6 +125,17 @@ public abstract class GraphScenario {
         public GroupLevel(String prefix, int numPerLevel) {
             this.prefix = prefix;
             this.numPerLevel = numPerLevel;
+        }
+    }
+
+    static class CategoryLevel {
+
+        int numTermsPerLevel;
+        int numChildCategories;
+
+        public CategoryLevel(int numChildCategories, int numTermsPerLevel) {
+            this.numChildCategories = numChildCategories;
+            this.numTermsPerLevel = numTermsPerLevel;
         }
     }
 }

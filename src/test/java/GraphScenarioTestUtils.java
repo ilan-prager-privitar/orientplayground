@@ -1,6 +1,5 @@
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.junit.jupiter.api.Assertions;
 
 public class GraphScenarioTestUtils {
     public static boolean hasAccess(Graph g, String resourceId, String userId, String permission) {
@@ -12,8 +11,16 @@ public class GraphScenarioTestUtils {
         }
     }
 
-    public static  Object getAllAccessible(Graph g, String userId, String permission) {
+    public static Object getAllAccessible(Graph g, String userId, String permission) {
         try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V(), userId, permission).values("name").fold()) {
+            return t.next();
+        } catch (Exception x) {
+            throw new RuntimeException(x);
+        }
+    }
+
+    public static Object getAllAccessibleByType(Graph g, String userId, String permission, String type, int limit) {
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V().hasLabel(type), userId, permission).limit(limit).values("name").fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);

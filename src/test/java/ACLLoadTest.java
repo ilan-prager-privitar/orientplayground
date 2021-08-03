@@ -41,10 +41,10 @@ public class ACLLoadTest {
 
         @Override
         public void createGraph() {
-//            large groups - e.g. All users, All NA, All EMEA
-//            a few levels of nested subgroups - 10?
-//            a few levels of permissioned container hierarchies - 10?
-//            a reasonable number of ACLs at each level (assuming that customers will manage most ACLs by groups as best practice doesn’t mean that they will) - 100?
+            // large groups - e.g. All users, All NA, All EMEA
+            // a few levels of nested subgroups
+            // a few levels of permissioned container hierarchies
+            // a reasonable number of ACLs at each level (assuming that customers will manage most ACLs by groups as best practice doesn’t mean that they will) - 100?
 
             // 200,000 users
 
@@ -57,7 +57,6 @@ public class ACLLoadTest {
             // each has 10 nested subgroups - director - 250 members
             // each has 10 groups - teams - 50 members
             // 30,000 adhoc groups of 3-30 people (30,000)
-            // total: 51,000 groups
 
             int NUM_TOTAL_USERS = 200000;            // number of users in the enterprise
             int NUM_REGIONS = 10;                   // number of regions
@@ -73,13 +72,13 @@ public class ACLLoadTest {
             int NUM_ADHOC_MIN = 3;
             int NUM_ADHOC_MAX = 30;
 
-            // users and all group
-            final Vertex allGroup = createGroup("ALL");
+            // users and all group (all group will start out only containing subgroups so that we can exercise subgroup traversal)
+            // later, we'll add all users directly into the ALL group
+            final Vertex allGroup = createGroup("all-0");
 
             List<Vertex> allUsers = new ArrayList<>(NUM_TOTAL_USERS);
             IntStream.range(0, NUM_TOTAL_USERS).forEach((i) -> {
                 Vertex user = createUser("user " + i);
-                addToGroup(user, allGroup);
                 allUsers.add(user);
             });
 
@@ -103,17 +102,101 @@ public class ACLLoadTest {
             IntStream.range(0, NUM_ADHOC_GROUPS).forEach((i) -> {
                 Vertex adhocGroup = createGroup("adhoc->" + i);
                 int size = NUM_ADHOC_MIN + (i % (NUM_ADHOC_MAX - NUM_ADHOC_MIN + 1));
-                List<Vertex> users = rand.ints(size, 0, NUM_TOTAL_USERS).mapToObj(index -> allUsers.get(i)).collect(Collectors.toList());
+                List<Vertex> users = rand.ints(size, 0, NUM_TOTAL_USERS).mapToObj(index -> allUsers.get(index)).collect(Collectors.toList());
                 addUsersToGroup(users, adhocGroup, 0, users.size());
             });
+
+            // create glossary hierarchy, with 2 top level categories, wide and deep
+            // wide case:
+            // 6 categories, 5 levels deep
+            // term distribution: bulk up categories at 3rd level with 300 terms each, then distribute 10 to every other category
+            // deep case:
+            // 1 category 10 levels deep
+            // term distribution: bulk up 3 categories at 3rd level with 300 terms each, then distribute 5 to leaf categories
+
+            Vertex wideRoot = createFolder("wide");
+            addCategoriesAndTerms(wideRoot, Arrays.asList(
+                new CategoryLevel(6, 10),
+                new CategoryLevel(10, 10),
+                new CategoryLevel(6, 300),
+                new CategoryLevel(7, 10),
+                new CategoryLevel(2, 10)
+            ), 0);
+
+            Vertex deepRoot = createFolder("deep");
+            addCategoriesAndTerms(deepRoot, Arrays.asList(
+                    new CategoryLevel(1, 0),
+                    new CategoryLevel(3, 0),
+                    new CategoryLevel(3, 300),
+                    new CategoryLevel(2, 0),
+                    new CategoryLevel(2, 0),
+                    new CategoryLevel(2, 0),
+                    new CategoryLevel(3, 0),
+                    new CategoryLevel(5, 0),
+                    new CategoryLevel(2, 0),
+                    new CategoryLevel(3, 5)
+            ), 0);
+
+            // deep case: at top level, assign 100 ACLs, including top level organizational group
+            // test access for team group member to leaf term 10 levels down
+            IntStream.range(0, 100).forEach((i) -> {
+                addHasPermission(allUsers.get(i), deepRoot, "R");
+            });
+            // we stress the system by ensuring that we need to traverse up the group structure in order to get to a group that has access
+            addHasPermission(allGroup, deepRoot, "R");
+
+            Vertex userInTeam = createUser("user " + NUM_TOTAL_USERS);
+            Vertex teamGroup = graph.get().traversal().V().hasLabel("Group").has("name", "team->->1->0->0->0").next();
+            addUsersToGroup(allUsers, allGroup, 0, allUsers.size());
+            addToGroup(userInTeam, teamGroup);
+            String userInDeepNestedGroup = userInTeam.value("name");
+            String directUser = allUsers.get(0).value("name");
+
+            System.out.println("Testing direct user and nested container hierarchy");
+            System.out.println("-------------------------------------------------------------------");
+            timeAccess(directUser);
+
+            System.out.println("\nTesting deep access to nested groups and nested container hierarchy");
+            System.out.println("-------------------------------------------------------------------");
+            timeAccess(userInDeepNestedGroup);
+
+            System.out.println("\nTesting shallow access to big group and nested container hierarchy");
+            System.out.println("-------------------------------------------------------------------");
+            addToGroup(userInTeam, allGroup);
+            timeAccess(userInDeepNestedGroup);
+
+//            long start = System.nanoTime();
+//            List all = (List)GraphScenarioTestUtils.getAllAccessibleByType(graph.get(), userInDeepNestedGroup, "R", "Term", 200);
+//            System.out.println("Access to 200 folders " + (System.nanoTime() - start) / 1000000.0 + " ms");
 
             System.out.println("Vertices: " + graph.get().traversal().V().count().next());
             System.out.println("Edges: " + graph.get().traversal().E().count().next());
             System.out.println("Groups: " + graph.get().traversal().V().hasLabel("Group").count().next());
-            getStats().forEach((key, list) -> {
+            System.out.println("Folders: " + graph.get().traversal().V().hasLabel("Folder").count().next());
+            System.out.println("Terms: " + graph.get().traversal().V().hasLabel("Term").count().next());
+
+            getGroupStats().forEach((key, list) -> {
                 System.out.println(key + " -> " + list.stream().mapToInt(Integer::intValue).summaryStatistics());
             });
         }
+    }
+
+    private static void timeAccess(String userName) {
+        long start = System.nanoTime();
+        assertAccess("deep", userName, "R", true);
+        System.out.println("Access to deep root node " + (System.nanoTime() - start) / 1000000.0 + " ms");
+
+        start = System.nanoTime();
+        assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "R", true);
+        System.out.println("Access to deep leaf node " + (System.nanoTime() - start) / 1000000.0 + " ms");
+
+        start = System.nanoTime();
+        assertAccess("deep", userName, "W", false);
+        System.out.println("Access for write to deep root node " + (System.nanoTime() - start) / 1000000.0 + " ms");
+
+        start = System.nanoTime();
+        assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "W", false);
+        System.out.println("Access for write to deep leaf node " + (System.nanoTime() - start) / 1000000.0 + " ms");
     }
 
 //    @Test
