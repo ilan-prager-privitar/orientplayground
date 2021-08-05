@@ -19,8 +19,8 @@ public class GraphScenarioTestUtils {
         }
     }
 
-    public static Object getAllAccessibleByType(Graph g, String userId, String permission, String type, int limit) {
-        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V().hasLabel(type), userId, permission).limit(limit).values("name").fold()) {
+    public static Object getAllAccessibleOrderedByType(Graph g, String userId, String permission, String type, int limit) {
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V().hasLabel(type).order().by("name"), userId, permission).limit(limit).values("name").fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);

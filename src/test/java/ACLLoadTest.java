@@ -1,3 +1,6 @@
+import com.orientechnologies.orient.core.db.ODatabaseType;
+import com.orientechnologies.orient.core.db.OrientDB;
+import com.orientechnologies.orient.core.db.OrientDBConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -5,9 +8,12 @@ import java.util.Random;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.tinkerpop.gremlin.orientdb.OrientGraph;
+import org.apache.tinkerpop.gremlin.orientdb.OrientGraphFactory;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+// import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -18,9 +24,21 @@ public class ACLLoadTest {
 
     @BeforeAll
     public static void setup() {
-        // in memory
-        graph = TinkerGraph.open();
-        new LoadScenario(() -> graph).createGraph();
+//        // in memory
+//        graph = TinkerGraph.open();
+        String DB_NAME = "loaddb";
+        OrientDB orientDB = new OrientDB("remote:localhost","user","passw0rd", OrientDBConfig.defaultConfig());
+        boolean recreate = false;
+        if (recreate) {
+            if (orientDB.exists(DB_NAME)) {
+                System.out.println("Dropping db " + DB_NAME);
+                orientDB.drop(DB_NAME);
+            }
+            orientDB.create(DB_NAME, ODatabaseType.PLOCAL);
+        }
+        //graph = new OrientGraphFactory("remote:localhost/" + DB_NAME,"root","rootpwd").getNoTx();
+        graph = new OrientGraphFactory("remote:localhost/" + DB_NAME,"user","passw0rd").getTx();
+//        graph = OrientGraph.open("remote:localhost/" + DB_NAME,"root","rootpwd");
     }
 
     public static void assertAccess(String resourceId, String userId, String permission, boolean expected) {
@@ -29,8 +47,13 @@ public class ACLLoadTest {
     }
 
     @Test
-    public void testSomething() {
+    public void loadGraph() {
+//        new LoadScenario(() -> graph).createGraph();
+    }
 
+    @Test
+    public void queryGraph() {
+        new LoadScenario(() -> graph).queryGraph();
     }
 
     static class LoadScenario extends GraphScenario {
@@ -76,19 +99,25 @@ public class ACLLoadTest {
             // later, we'll add all users directly into the ALL group
             final Vertex allGroup = createGroup("all-0");
 
+            System.out.println("Creating users");
             List<Vertex> allUsers = new ArrayList<>(NUM_TOTAL_USERS);
             IntStream.range(0, NUM_TOTAL_USERS).forEach((i) -> {
                 Vertex user = createUser("user " + i);
                 allUsers.add(user);
             });
+            System.out.println("About to commut Users");
+            System.out.println("Users created");
 
+            System.out.println("Creating regional groups");
             // add regional groups
             addGroups("", allUsers.size(), 0, allUsers, allGroup, Arrays.asList(
                     new GroupLevel("region", NUM_REGIONS),
                     new GroupLevel("location", NUM_LOCATIONS_PER_REGION),
                     new GroupLevel("locationGroup", NUM_GROUPS_PER_LOCATION)
             ), 0);
+            System.out.println("Regional groups created");
 
+            System.out.println("Creating organizational groups");
             // add organizational groups
             addGroups("", allUsers.size(), 0, allUsers, allGroup, Arrays.asList(
                     new GroupLevel("division", NUM_DIVISIONS),
@@ -96,7 +125,9 @@ public class ACLLoadTest {
                     new GroupLevel("directorgroup", NUM_DIRECTORS_PER_VP),
                     new GroupLevel("team", NUM_TEAMS_PER_DIRECTOR)
             ), 0);
+            System.out.println("Organizational groups created");
 
+            System.out.println("Creating adhoc groups");
             // add adhoc groups
             Random rand = new Random();
             IntStream.range(0, NUM_ADHOC_GROUPS).forEach((i) -> {
@@ -105,6 +136,7 @@ public class ACLLoadTest {
                 List<Vertex> users = rand.ints(size, 0, NUM_TOTAL_USERS).mapToObj(index -> allUsers.get(index)).collect(Collectors.toList());
                 addUsersToGroup(users, adhocGroup, 0, users.size());
             });
+            System.out.println("Adhoc groups created");
 
             // create glossary hierarchy, with 2 top level categories, wide and deep
             // wide case:
@@ -113,7 +145,7 @@ public class ACLLoadTest {
             // deep case:
             // 1 category 10 levels deep
             // term distribution: bulk up 3 categories at 3rd level with 300 terms each, then distribute 5 to leaf categories
-
+            System.out.println("Creating wide term hierarchy");
             Vertex wideRoot = createFolder("wide");
             addCategoriesAndTerms(wideRoot, Arrays.asList(
                 new CategoryLevel(6, 10),
@@ -122,7 +154,9 @@ public class ACLLoadTest {
                 new CategoryLevel(7, 10),
                 new CategoryLevel(2, 10)
             ), 0);
+            System.out.println("Created wide term hierarchy");
 
+            System.out.println("Creating deep term hierarchy");
             Vertex deepRoot = createFolder("deep");
             addCategoriesAndTerms(deepRoot, Arrays.asList(
                     new CategoryLevel(1, 0),
@@ -136,7 +170,9 @@ public class ACLLoadTest {
                     new CategoryLevel(2, 0),
                     new CategoryLevel(3, 5)
             ), 0);
+            System.out.println("Created deep term hierarchy");
 
+            System.out.println("Adding permissions");
             // deep case: at top level, assign 100 ACLs, including top level organizational group
             // test access for team group member to leaf term 10 levels down
             IntStream.range(0, 100).forEach((i) -> {
@@ -145,12 +181,21 @@ public class ACLLoadTest {
             // we stress the system by ensuring that we need to traverse up the group structure in order to get to a group that has access
             addHasPermission(allGroup, deepRoot, "R");
 
-            Vertex userInTeam = createUser("user " + NUM_TOTAL_USERS);
+            System.out.println("Permissions added");
+
+            Vertex userInTeam = createUser("user " + NUM_TOTAL_USERS + 1);
             Vertex teamGroup = graph.get().traversal().V().hasLabel("Group").has("name", "team->->1->0->0->0").next();
             addUsersToGroup(allUsers, allGroup, 0, allUsers.size());
             addToGroup(userInTeam, teamGroup);
+        }
+
+        public void queryGraph() {
+            Vertex userInTeam = getByName("User", "user " + 200001);
+            Vertex allGroup = getByName("Group", "all-0");
+            List<Vertex> allUsers = getAllByType("User");
             String userInDeepNestedGroup = userInTeam.value("name");
             String directUser = allUsers.get(0).value("name");
+            removeFromGroup(userInTeam, allGroup);
 
             System.out.println("Testing direct user and nested container hierarchy");
             System.out.println("-------------------------------------------------------------------");
@@ -165,9 +210,9 @@ public class ACLLoadTest {
             addToGroup(userInTeam, allGroup);
             timeAccess(userInDeepNestedGroup);
 
-//            long start = System.nanoTime();
-//            List all = (List)GraphScenarioTestUtils.getAllAccessibleByType(graph.get(), userInDeepNestedGroup, "R", "Term", 200);
-//            System.out.println("Access to 200 folders " + (System.nanoTime() - start) / 1000000.0 + " ms");
+            long start = System.nanoTime();
+            List all = (List)GraphScenarioTestUtils.getAllAccessibleOrderedByType(graph.get(), userInDeepNestedGroup, "R", "Term", 200);
+            System.out.println("Access to 200 terms " + (System.nanoTime() - start) / 1000000.0 + " ms");
 
             System.out.println("Vertices: " + graph.get().traversal().V().count().next());
             System.out.println("Edges: " + graph.get().traversal().E().count().next());

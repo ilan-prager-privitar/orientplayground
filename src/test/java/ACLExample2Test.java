@@ -8,7 +8,8 @@ import java.util.stream.IntStream;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+//import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+//import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,7 @@ public class ACLExample2Test {
     @BeforeAll
     public static void setup() {
         // in memory
-        graph = TinkerGraph.open();
+//        graph = TinkerGraph.open();
         new Example2Scenario(() -> graph).createGraph();
     }
 

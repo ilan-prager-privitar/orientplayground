@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -20,6 +21,14 @@ public abstract class GraphScenario {
         return graph.get().addVertex("User").property("name", name).element();
     }
 
+    protected Vertex getByName(String type, String name) {
+        return graph.get().traversal().V().hasLabel(type).property("name", name).next();
+    }
+
+    protected List<Vertex> getAllByType(String type) {
+        return graph.get().traversal().V().hasLabel(type).fold().next();
+    }
+
     protected Vertex createGroup(String name) {
         return graph.get().addVertex("Group").property("name", name).element();
     }
@@ -34,6 +43,14 @@ public abstract class GraphScenario {
 
     protected Edge addToGroup(Vertex user, Vertex group) {
         return user.addEdge("MEMBER_OF", group);
+    }
+
+    protected void removeFromGroup(Vertex user, Vertex group) {
+        user.edges(Direction.OUT, "MEMBER_OF").forEachRemaining(edge -> {
+            if (edge.inVertex().value("name").equals(group.value("name"))) {
+                edge.remove();
+            }
+        });
     }
 
     protected Edge addToSuperGroup(Vertex group, Vertex superGroup) {
