@@ -3,6 +3,7 @@ import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -242,6 +243,14 @@ public class ACLLoadTest {
         testStats.add(millis);
     }
 
+    private static void printStats(Map<String, List<Double>> stats) {
+        System.out.format("%-40s %10s %10s %10s %10s\n", "", "Iterations", "min (ms)", "max (ms)", "avg (ms)");
+        stats.forEach((key, value) -> {
+            DoubleSummaryStatistics summary = value.stream().mapToDouble(Double::doubleValue).summaryStatistics();
+            System.out.format("%-40s %10s %10s %10s %10s\n", key, summary.getCount(), summary.getMin(), summary.getMax(), summary.getAverage());
+        });
+    }
+
     private static void timeAccess(String userName) {
         int iterations = 20;
         Map<String, List<Double>> stats = new HashMap<>();
@@ -251,9 +260,7 @@ public class ACLLoadTest {
             run("Access for write to deep root node", stats, (x) -> assertAccess("deep", userName, "W", false) );
             run("Access for write to deep leaf node", stats, (x) -> assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "W", false) );
         });
-        stats.forEach((key, value) -> {
-            System.out.println(key + " -> " + value.stream().mapToDouble(Double::doubleValue).summaryStatistics());
-        });
+        printStats(stats);
     }
 
     private static void timeBulkAccess(String userInDeepNestedGroup) {
@@ -263,8 +270,6 @@ public class ACLLoadTest {
             run("Ordered terms limit 200", stats, (x) -> GraphScenarioTestUtils.getAllOrderedByType(graph, "Term", 200));
             run("Accessible Ordered terms limit 200", stats, (x) ->GraphScenarioTestUtils.getAllAccessibleOrderedByType(graph, userInDeepNestedGroup, "R", "Term", 200));
         });
-        stats.forEach((key, value) -> {
-            System.out.println(key + " -> " + value.stream().mapToDouble(Double::doubleValue).summaryStatistics());
-        });
+        printStats(stats);
     }
 }
