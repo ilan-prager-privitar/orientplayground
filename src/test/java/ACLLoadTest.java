@@ -3,8 +3,13 @@ import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -210,9 +215,12 @@ public class ACLLoadTest {
             addToGroup(userInTeam, allGroup);
             timeAccess(userInDeepNestedGroup);
 
-            long start = System.nanoTime();
-            List all = (List)GraphScenarioTestUtils.getAllAccessibleOrderedByType(graph.get(), userInDeepNestedGroup, "R", "Term", 200);
-            System.out.println("Access to 200 terms " + (System.nanoTime() - start) / 1000000.0 + " ms");
+            System.out.println("\nTesting bulk access");
+            System.out.println("-------------------------------------------------------------------");
+            timeBulkAccess(userInDeepNestedGroup);
+
+            System.out.println("\nGeneral graph stats");
+            System.out.println("-------------------------------------------------------------------");
 
             System.out.println("Vertices: " + graph.get().traversal().V().count().next());
             System.out.println("Edges: " + graph.get().traversal().E().count().next());
@@ -226,23 +234,40 @@ public class ACLLoadTest {
         }
     }
 
-    private static void timeAccess(String userName) {
-        long start = System.nanoTime();
-        assertAccess("deep", userName, "R", true);
-        System.out.println("Access to deep root node " + (System.nanoTime() - start) / 1000000.0 + " ms");
-
-        start = System.nanoTime();
-        assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "R", true);
-        System.out.println("Access to deep leaf node " + (System.nanoTime() - start) / 1000000.0 + " ms");
-
-        start = System.nanoTime();
-        assertAccess("deep", userName, "W", false);
-        System.out.println("Access for write to deep root node " + (System.nanoTime() - start) / 1000000.0 + " ms");
-
-        start = System.nanoTime();
-        assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "W", false);
-        System.out.println("Access for write to deep leaf node " + (System.nanoTime() - start) / 1000000.0 + " ms");
+    private static void run(String label, Map<String, List<Double>> stats, Consumer<Void> func) {
+        List<Double> testStats = stats.computeIfAbsent(label, (String) -> new ArrayList<Double>());
+        long start = System.currentTimeMillis();
+        func.accept(null);
+        double millis = (System.currentTimeMillis() - start);
+        testStats.add(millis);
     }
+
+    private static void timeAccess(String userName) {
+        int iterations = 20;
+        Map<String, List<Double>> stats = new HashMap<>();
+        IntStream.range(0, iterations).forEach(iteration -> {
+            run("Access to deep root node", stats, (x) -> assertAccess("deep", userName, "R", true) );
+            run("Access to deep leaf node", stats, (x) -> assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "R", true) );
+            run("Access for write to deep root node", stats, (x) -> assertAccess("deep", userName, "W", false) );
+            run("Access for write to deep leaf node", stats, (x) -> assertAccess("deep_0_0_0_0_1_0_0_2_1_1_3", userName, "W", false) );
+        });
+        stats.forEach((key, value) -> {
+            System.out.println(key + " -> " + value.stream().mapToDouble(Double::doubleValue).summaryStatistics());
+        });
+    }
+
+    private static void timeBulkAccess(String userInDeepNestedGroup) {
+        int iterations = 20;
+        Map<String, List<Double>> stats = new HashMap<>();
+        IntStream.range(0, iterations).forEach(iteration -> {
+            run("Ordered terms limit 200", stats, (x) -> GraphScenarioTestUtils.getAllOrderedByType(graph, "Term", 200));
+            run("Accessible Ordered terms limit 200", stats, (x) ->GraphScenarioTestUtils.getAllAccessibleOrderedByType(graph, userInDeepNestedGroup, "R", "Term", 200));
+        });
+        stats.forEach((key, value) -> {
+            System.out.println(key + " -> " + value.stream().mapToDouble(Double::doubleValue).summaryStatistics());
+        });
+    }
+
 
 //    @Test
 //    public void printAllAccessibleToAllUsers() {

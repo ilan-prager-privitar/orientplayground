@@ -3,7 +3,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 
 public class GraphScenarioTestUtils {
     public static boolean hasAccess(Graph g, String resourceId, String userId, String permission) {
-        System.out.println(String.format("Looking for %s with access %s by %s", resourceId, permission, userId));
+        // System.out.println(String.format("Looking for %s with access %s by %s", resourceId, permission, userId));
         try (GraphTraversal t = new PermissionTraverser().hasAccess(g, resourceId, userId, permission)) {
             return t.hasNext();
         } catch (Exception x) {
@@ -21,6 +21,14 @@ public class GraphScenarioTestUtils {
 
     public static Object getAllAccessibleOrderedByType(Graph g, String userId, String permission, String type, int limit) {
         try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V().hasLabel(type).order().by("name"), userId, permission).limit(limit).values("name").fold()) {
+            return t.next();
+        } catch (Exception x) {
+            throw new RuntimeException(x);
+        }
+    }
+
+    public static Object getAllOrderedByType(Graph g, String type, int limit) {
+        try (GraphTraversal t = g.traversal().V().hasLabel(type).order().by("name").limit(limit).values("name").fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);
