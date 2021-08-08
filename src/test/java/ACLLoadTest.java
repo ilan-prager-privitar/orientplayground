@@ -267,14 +267,4 @@ public class ACLLoadTest {
             System.out.println(key + " -> " + value.stream().mapToDouble(Double::doubleValue).summaryStatistics());
         });
     }
-
-
-//    @Test
-//    public void printAllAccessibleToAllUsers() {
-//        graph.traversal().V().hasLabel("User").forEachRemaining((user) -> {
-//            String userId = user.value("name");
-//            printAllAccessibleToUser(graph, userId, "R");
-//            printAllAccessibleToUser(graph, userId, "W");
-//        });
-//    }
 }
