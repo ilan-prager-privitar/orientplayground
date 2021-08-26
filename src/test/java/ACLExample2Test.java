@@ -5,7 +5,9 @@ import java.util.Random;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies.GlobalCache;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
@@ -21,6 +23,7 @@ public class ACLExample2Test {
     public static void setup() {
         // in memory
         graph = TinkerGraph.open();
+        GlobalCache.getStrategies(graph.getClass()).addStrategies(PermissionEnforcingStrategy.instance());
         new Example2Scenario(() -> graph).createGraph();
     }
 

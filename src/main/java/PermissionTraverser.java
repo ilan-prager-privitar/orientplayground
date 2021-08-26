@@ -100,13 +100,14 @@ public class PermissionTraverser {
     }
 
     // main entry point - single resource
-    public GraphTraversal<Vertex, Object> hasAccess(Graph g, String resourceId, String userId, String permission) {
+    public GraphTraversal<Vertex, Vertex> hasAccess(Graph g, String resourceId, String userId, String permission) {
         return hasAccess(g, getResourceTraversal(g, resourceId), userId, permission);
     }
 
     // main entry point - resource traversal
-    public GraphTraversal<Vertex, Object> hasAccess(Graph g, GraphTraversal<Vertex, Vertex> resource, String userId, String permission) {
-        Vertex user = getUserById(g, userId);
-        return resourceViaPermissionedContainerTraversal(resource, permission, () -> resourcePermissionedToUserTraversal(user, permission));
+    public GraphTraversal<Vertex, Vertex> hasAccess(Graph g, GraphTraversal<Vertex, Vertex> resource, String userId, String permission) {
+        //Vertex user = getUserById(g, userId);
+        return resource.with("userId", userId).with("permission", permission);
+//        return resourceViaPermissionedContainerTraversal(resource, permission, () -> resourcePermissionedToUserTraversal(user, permission));
     }
 }
