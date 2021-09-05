@@ -1,7 +1,9 @@
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
 public class GraphScenarioTestUtils {
+
     public static boolean hasAccess(Graph g, String resourceId, String userId, String permission) {
         System.out.println(String.format("Looking for %s with access %s by %s", resourceId, permission, userId));
         try (GraphTraversal t = new PermissionTraverser().hasAccess(g, resourceId, userId, permission)) {
@@ -12,7 +14,7 @@ public class GraphScenarioTestUtils {
     }
 
     public static Object getAllAccessible(Graph g, String userId, String permission) {
-        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V(), userId, permission).values("name").fold()) {
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, __.V(), userId, permission).values("name").fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);
@@ -20,7 +22,8 @@ public class GraphScenarioTestUtils {
     }
 
     public static Object getAllAccessibleByType(Graph g, String userId, String permission, String type, int limit) {
-        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V().hasLabel(type), userId, permission).limit(limit).values("name").fold()) {
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V().hasLabel(type), userId, permission).limit(limit).values("name")
+                .fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);
