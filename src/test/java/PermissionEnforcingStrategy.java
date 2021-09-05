@@ -25,12 +25,6 @@ public final class PermissionEnforcingStrategy extends AbstractTraversalStrategy
         if (!traversal.isRoot() || traversal.getSteps().isEmpty()) {
             return;
         }
-        final String MARKER = Graph.Hidden.hide("permissionenforcerstrategy");
-
-        if (traversal.getStartStep().getLabels().contains(MARKER)) {
-            return;
-        }
-        traversal.getStartStep().addLabel(MARKER);
 
         Map<String, Object> opts = getConfigMap(traversal);
         if (opts.isEmpty()) {
