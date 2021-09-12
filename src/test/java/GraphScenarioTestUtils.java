@@ -14,7 +14,7 @@ public class GraphScenarioTestUtils {
     }
 
     public static Object getAllAccessible(Graph g, String userId, String permission) {
-        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, __.V(), userId, permission).values("name").fold()) {
+        try (GraphTraversal t = new PermissionTraverser().hasAccess(g, g.traversal().V(), userId, permission).values("name").fold()) {
             return t.next();
         } catch (Exception x) {
             throw new RuntimeException(x);
