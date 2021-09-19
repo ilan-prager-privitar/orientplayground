@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent.Pick;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
@@ -52,7 +54,7 @@ public class PermissionTraverser {
         traversals.add(isPermissionedToPrincipal(userId, permission));
         traversals.add(isPermissionedToPrincipalGroupsHierarchy(userId, permission));
 
-        return __.or(traversals.toArray(new Traversal<?, ?>[]{}));
+        return __.and(__.or(traversals.toArray(new Traversal<?, ?>[]{})), __.hasLabel("Term", "Folder"));
     }
 
     private GraphTraversal<Vertex, Vertex> isPermissionedToPrincipal(String userId, String permission) {
@@ -105,12 +107,14 @@ public class PermissionTraverser {
 
     // main entry point - single resource
     public GraphTraversal<Vertex, Vertex> hasAccess(Graph g, String resourceId, String userId, String permission) {
-        return hasAccess(g, g.traversal().V().where(getResourceTraversal(g, resourceId)), userId, permission);
+        return hasAccess(g, getResourceTraversal(g, resourceId), userId, permission);
     }
 
     // main entry point - resource traversal
-    public GraphTraversal<Vertex, Vertex> hasAccess(Graph g, GraphTraversal<Vertex, Vertex> resource, String userId, String permission) {
-        return resource.with("userId", userId).with("permission", permission);
+    public GraphTraversal<Vertex, Vertex> hasAccess(Graph g, Traversal<?, Vertex> resource, String userId, String permission) {
+        GraphTraversalSource t = g.traversal().withStrategies(
+                SubgraphStrategy.build().vertices((Traversal) hasAccessTraversal(userId, permission)).create());
+        return t.V().where(resource);
     }
 
     public GraphTraversal<Object, Object> hasAccessTraversal(String userId, String permission) {
